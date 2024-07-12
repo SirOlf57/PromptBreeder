@@ -15,7 +15,7 @@ import time
 
 from dotenv import load_dotenv
 from rich import print
-import cohere
+#import cohere
 
 load_dotenv() # load environment variables
 

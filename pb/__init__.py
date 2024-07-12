@@ -3,20 +3,24 @@ import random
 import re
 import logging
 import os
+import requests
+import json
+from colorama import Fore
 import concurrent.futures
 from typing import List
 
 from rich import print
 import time
-from cohere import Client
+# from cohere import Client
 
-from pb.mutation_operators import mutate
+from pb.mutation_operators import mutate, llm
 from pb import gsm
 from pb.types import EvolutionUnit, Population
 
 logger = logging.getLogger(__name__)
 
 gsm8k_examples = gsm.read_jsonl('pb/data/gsm.jsonl')
+
 
 def create_population(tp_set: List, mutator_set: List, problem_description: str) -> Population:
     """samples the mutation_prompts and thinking_styles and returns a 'Population' object.
@@ -26,22 +30,23 @@ def create_population(tp_set: List, mutator_set: List, problem_description: str)
         'problem_description (D)' (str): the problem description we are optimizing for.
     """
     data = {
-        'size': len(tp_set)*len(mutator_set),
+        'size': len(tp_set) * len(mutator_set),
         'age': 0,
-        'problem_description' : problem_description,
-        'elites' : [],
+        'problem_description': problem_description,
+        'elites': [],
         'units': [EvolutionUnit(**{
-            'T' : t, 
-            'M' : m,
-            'P' : '',
-            'fitness' : 0,
-            'history' : []
-            }) for t in tp_set for m in mutator_set]
+            'T': t,
+            'M': m,
+            'P': '',
+            'fitness': 0,
+            'history': []
+        }) for t in tp_set for m in mutator_set]
     }
 
     return Population(**data)
 
-def init_run(population: Population, model: Client, num_evals: int):
+
+def init_run(population: Population, num_evals: int):
     """ The first run of the population that consumes the prompt_description and 
     creates the first prompt_tasks.
     
@@ -52,13 +57,16 @@ def init_run(population: Population, model: Client, num_evals: int):
     start_time = time.time()
 
     prompts = []
+    results = []
 
-    for unit in population.units:    
-        template= f"{unit.T} {unit.M} INSTRUCTION: {population.problem_description} INSTRUCTION MUTANT = "
+    for unit in population.units:
+        template = f"{unit.T} {unit.M} INSTRUCTION: {population.problem_description} INSTRUCTION MUTANT = "
         prompts.append(template)
-    
- 
-    results = model.batch_generate(prompts)
+
+    for p in prompts:
+        result = llm(p)
+        results.append(result)
+    # results = model.batch_generate(prompts)
 
     end_time = time.time()
 
@@ -66,34 +74,36 @@ def init_run(population: Population, model: Client, num_evals: int):
 
     assert len(results) == population.size, "size of google response to population is mismatched"
     for i, item in enumerate(results):
-        population.units[i].P = item[0].text
+        population.units[i].P = item[0]
 
-    _evaluate_fitness(population, model, num_evals)
-    
+    _evaluate_fitness(population, num_evals)
+
     return population
 
-def run_for_n(n: int, population: Population, model: Client, num_evals: int):
+
+def run_for_n(n: int, population: Population, num_evals: int):
     """ Runs the genetic algorithm for n generations.
-    """     
+    """
     p = population
-    for i in range(n):  
+    for i in range(n):
         print(f"================== Population {i} ================== ")
-        mutate(p, model)
+        mutate(p)
         print("done mutation")
-        _evaluate_fitness(p, model, num_evals)
+        _evaluate_fitness(p, num_evals)
         print("done evaluation")
 
     return p
 
-def _evaluate_fitness(population: Population, model: Client, num_evals: int) -> Population:
+
+def _evaluate_fitness(population: Population, num_evals: int) -> Population:
     """ Evaluates each prompt P on a batch of Q&A samples, and populates the fitness values.
     """
     # need to query each prompt, and extract the answer. hardcoded 4 examples for now.
-    
+
     logger.info(f"Starting fitness evaluation...")
     start_time = time.time()
 
-    #batch = random.sample(gsm8k_examples, num_evals)
+    # batch = random.sample(gsm8k_examples, num_evals)
     # instead of random, its better for reproducibility 
     batch = gsm8k_examples[:num_evals]
 
@@ -106,22 +116,29 @@ def _evaluate_fitness(population: Population, model: Client, num_evals: int) -> 
         examples.append([unit.P + ' \n' + example['question'] for example in batch])
 
     results = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(examples)) as executor:
-        future_to_fit = {executor.submit(model.batch_generate, example_batch,  temperature=0): example_batch for example_batch in examples}
-        for future in concurrent.futures.as_completed(future_to_fit):
-            example_batch = future_to_fit[future]  # Get the prompt corresponding to this future
-            try:
-                data = future.result()
-                results.append(data)
-            except Exception as exc:
-                print(f"Exception: {exc}")
 
+    for example_batch in examples:
+        try:
+            data = llm(example_batch, temperature=0)
+            results.append(data)
+        except Exception as exc:
+            print(f"Exception: {exc}")
 
-    # https://arxiv.org/pdf/2309.16797.pdf#page=5, P is a task-prompt to condition 
+    # with concurrent.futures.ThreadPoolExecutor(max_workers=len(examples)) as executor:
+    #     future_to_fit = {executor.submit(llm, example_batch,  temperature=0): example_batch for example_batch in examples}
+    #     for future in concurrent.futures.as_completed(future_to_fit):
+    #         example_batch = future_to_fit[future]  # Get the prompt corresponding to this future
+    #         try:
+    #             data = future.result()
+    #             results.append(data)
+    #         except Exception as exc:
+    #             print(f"Exception: {exc}")
+
+    # https://arxiv.org/pdf/2309.16797.pdf#page=5, P is a task-prompt to condition
     # the LLM before further input Q.
     for unit_index, fitness_results in enumerate(results):
         for i, x in enumerate(fitness_results):
-            valid = re.search(gsm.gsm_extract_answer(batch[i]['answer']), x[0].text)
+            valid = re.search(gsm.gsm_extract_answer(batch[i]['answer']), str(x[0]))
             if valid:
                 # 0.25 = 1 / 4 examples
                 population.units[unit_index].fitness += (1 / num_evals)
@@ -130,10 +147,10 @@ def _evaluate_fitness(population: Population, model: Client, num_evals: int) -> 
                 # I am copying this bc I don't know how it might get manipulated by future mutations.
 
                 unit = population.units[unit_index]
-                
+
                 current_elite = unit.model_copy()
                 elite_fitness = unit.fitness
-    
+
     # append best unit of generation to the elites list.
     population.elites.append(current_elite)
     end_time = time.time()
