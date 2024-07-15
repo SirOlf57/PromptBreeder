@@ -107,17 +107,12 @@ def _evaluate_fitness(population: Population, num_evals: int) -> Population:
         examples.append([example['question'] for example in batch])
 
     results = []
-
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(examples)) as executor:
-        future_to_fit = {executor.submit(lambda batch: [llm(example, temperature=0) for example in batch],
-                                         example_batch): example_batch for example_batch in examples}
-        for future in concurrent.futures.as_completed(future_to_fit):
-            try:
-                data = future.result()
-                results.append(data)
-            except Exception as exc:
-                print(f"Exception: {exc}")
+    for example_batch in examples:
+        try:
+            data = [llm(example, temperature=0) for example in example_batch]
+            results.append(data)
+        except Exception as exc:
+            print(f"Exception: {exc}")
 
     # https://arxiv.org/pdf/2309.16797.pdf#page=5, P is a task-prompt to condition
     # the LLM before further input Q.

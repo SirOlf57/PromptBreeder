@@ -75,7 +75,7 @@ def first_order_prompt_gen(unit: EvolutionUnit, **kwargs) -> EvolutionUnit:
     Returns: 
         EvolutionUnit: the evolution unit to replace the loser unit.
     """
-    unit.P = llm(unit.M + " " + unit.P)[0]
+    unit.P = llm(unit.M + " " + unit.P)
     return unit
 
 
@@ -105,7 +105,7 @@ def lineage_based_mutation(unit: EvolutionUnit, elites: List[EvolutionUnit], **k
     HEADING = "GENOTYPES FOUND IN ASCENDING ORDER OF QUALITY \n "
     # made a choice not to format it with newlines, could change later.
     ITEMS = "\n".join(["{}. {}".format(i + 1, x.P) for i, x in enumerate(elites)])
-    unit.P = llm(HEADING + ITEMS)[0]
+    unit.P = llm(HEADING + ITEMS)
 
     return unit
 
@@ -118,7 +118,7 @@ def zero_order_hypermutation(unit: EvolutionUnit, problem_description: str, **kw
         EvolutionUnit: the evolution unit to replace the loser unit.
     """
     RANDOM_THINKING_STYLE = random.sample(thinking_styles, 1)[0]
-    unit.M = llm(problem_description + " " + RANDOM_THINKING_STYLE)[0]
+    unit.M = llm(problem_description + " " + RANDOM_THINKING_STYLE)
     return unit
 
 
@@ -131,8 +131,8 @@ def first_order_hypermutation(unit: EvolutionUnit, **kwargs) -> EvolutionUnit:
         EvolutionUnit: the evolution unit to replace the loser unit.
     """
     HYPER_MUTATION_PROMPT = "Please summarize and improve the following instruction: "
-    unit.M = llm(HYPER_MUTATION_PROMPT + unit.M)[0]
-    unit.P = llm(unit.M + " " + unit.P)[0]
+    unit.M = llm(HYPER_MUTATION_PROMPT + unit.M)
+    unit.P = llm(unit.M + " " + unit.P)
     return unit
 
 
@@ -151,7 +151,7 @@ def working_out_task_prompt(unit: EvolutionUnit, **kwargs) -> EvolutionUnit:
     RANDOM_WORKING_OUT = random.sample(gsm8k_examples, 1)[0]
 
     unit.P = llm("I gave a friend an instruction and some advice. Here are the correct examples of his workings out " +
-                 RANDOM_WORKING_OUT['question'] + " " + RANDOM_WORKING_OUT['answer'] + " The instruction was: ")[0]
+                 RANDOM_WORKING_OUT['question'] + " " + RANDOM_WORKING_OUT['answer'] + " The instruction was: ")
     return unit
 
 
