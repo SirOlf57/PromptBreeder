@@ -1,17 +1,10 @@
-import warnings
-import random
+import concurrent.futures
 import re
 import logging
-import os
-import requests
-import json
-from colorama import Fore
-import concurrent.futures
 from typing import List
 
 from rich import print
 import time
-# from cohere import Client
 
 from pb.mutation_operators import mutate, llm
 from pb import gsm
@@ -66,7 +59,6 @@ def init_run(population: Population, num_evals: int):
     for p in prompts:
         result = llm(p)
         results.append(result)
-    # results = model.batch_generate(prompts)
 
     end_time = time.time()
 
@@ -74,7 +66,7 @@ def init_run(population: Population, num_evals: int):
 
     assert len(results) == population.size, "size of google response to population is mismatched"
     for i, item in enumerate(results):
-        population.units[i].P = item[0]
+        population.units[i].P = item
 
     _evaluate_fitness(population, num_evals)
 
@@ -112,42 +104,33 @@ def _evaluate_fitness(population: Population, num_evals: int) -> Population:
     for unit in population.units:
         # set the fitness to zero from past run.
         unit.fitness = 0
-        # todo. model.batch this or multithread
-        examples.append([unit.P + ' \n' + example['question'] for example in batch])
+        examples.append([example['question'] for example in batch])
 
     results = []
 
-    for example_batch in examples:
-        try:
-            data = llm(example_batch, temperature=0)
-            results.append(data)
-        except Exception as exc:
-            print(f"Exception: {exc}")
 
-    # with concurrent.futures.ThreadPoolExecutor(max_workers=len(examples)) as executor:
-    #     future_to_fit = {executor.submit(llm, example_batch,  temperature=0): example_batch for example_batch in examples}
-    #     for future in concurrent.futures.as_completed(future_to_fit):
-    #         example_batch = future_to_fit[future]  # Get the prompt corresponding to this future
-    #         try:
-    #             data = future.result()
-    #             results.append(data)
-    #         except Exception as exc:
-    #             print(f"Exception: {exc}")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(examples)) as executor:
+        future_to_fit = {executor.submit(lambda batch: [llm(example, temperature=0) for example in batch],
+                                         example_batch): example_batch for example_batch in examples}
+        for future in concurrent.futures.as_completed(future_to_fit):
+            try:
+                data = future.result()
+                results.append(data)
+            except Exception as exc:
+                print(f"Exception: {exc}")
 
     # https://arxiv.org/pdf/2309.16797.pdf#page=5, P is a task-prompt to condition
     # the LLM before further input Q.
     for unit_index, fitness_results in enumerate(results):
         for i, x in enumerate(fitness_results):
-            valid = re.search(gsm.gsm_extract_answer(batch[i]['answer']), str(x[0]))
+            valid = re.search(gsm.gsm_extract_answer(batch[i]['answer']), str(x))
             if valid:
                 # 0.25 = 1 / 4 examples
                 population.units[unit_index].fitness += (1 / num_evals)
 
-            if unit.fitness > elite_fitness:
-                # I am copying this bc I don't know how it might get manipulated by future mutations.
-
+            if population.units[unit_index].fitness > elite_fitness:
+                # Copy the unit to preserve it against future mutations
                 unit = population.units[unit_index]
-
                 current_elite = unit.model_copy()
                 elite_fitness = unit.fitness
 

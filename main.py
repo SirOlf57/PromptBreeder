@@ -14,10 +14,10 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=lo
 logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser(description='Run the PromptBreeder Algorithm. Number of units is mp * ts.')
-parser.add_argument('-mp', '--num_mutation_prompts', default=2)     
-parser.add_argument('-ts', '--num_thinking_styles', default=4)     
-parser.add_argument('-e', '--num_evals', default=10)     
-parser.add_argument('-n', '--simulations', default=10)     
+parser.add_argument('-mp', '--num_mutation_prompts', default=2, type=int)
+parser.add_argument('-ts', '--num_thinking_styles', default=4, type=int)
+parser.add_argument('-e', '--num_evals', default=10, type=int)
+parser.add_argument('-n', '--simulations', default=10, type=int)
 parser.add_argument('-p', '--problem', default="Solve the math word problem, giving your answer as an arabic numeral.")       
 
 args = vars(parser.parse_args())
