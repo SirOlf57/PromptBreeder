@@ -104,7 +104,7 @@ def _evaluate_fitness(population: Population, num_evals: int) -> Population:
     for unit in population.units:
         # set the fitness to zero from past run.
         unit.fitness = 0
-        examples.append([example['question'] for example in batch])
+        examples.append([unit.P + '\n' + example['question'] for example in batch])
 
     results = []
     for example_batch in examples:
