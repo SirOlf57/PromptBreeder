@@ -149,7 +149,7 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
                 similarity_score = cosine_scores.item()
                 print(Fore.GREEN + f"Similarity score: {similarity_score}")
 
-                if similarity_score > 0.8:
+                if similarity_score > 0.1:
                     population.units[unit_index].fitness += (
                                 0.5 / num_evals)  # Assign partial credit for semantic similarity
 
