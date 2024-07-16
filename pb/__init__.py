@@ -1,4 +1,5 @@
 import logging
+import random
 import re
 from typing import List
 
@@ -101,8 +102,8 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
     print(Fore.CYAN + "Starting fitness evaluation...")
     start_time = time.time()
 
-    batch = gsm8k_examples[:num_evals]
-
+    # batch = gsm8k_examples[:num_evals]
+    batch = random.sample(gsm8k_examples, num_evals)
     elite_fitness = -1
     examples = []
     for unit in population.units:
