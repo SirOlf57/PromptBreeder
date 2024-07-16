@@ -35,6 +35,7 @@ def create_population(tp_set: List, mutator_set: List, problem_description: str)
             'T': t,
             'M': m,
             'P': '',
+            'Q': '',
             'A': '',
             'fitness': 0,
             'history': []
