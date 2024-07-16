@@ -142,7 +142,7 @@ def context_shuffling(client: OllamaClient, **kwargs):
 
 # omitting the estimation_distribution_mutation
 MUTATORS = [
-    zero_order_prompt_gen,
+    # zero_order_prompt_gen,
     first_order_prompt_gen,
     # estimation_distribution_mutation,
     lineage_based_mutation,

@@ -86,13 +86,14 @@ where you can use those extra 3 mutations, but I can't promise they will be exac
 problem_description = st.text_input("problem description",
                                     value="Solve the math word problem, giving your answer as an arabic numeral.",
                                     key="pd")
-ollama_client = OllamaClient(model="llama3:8b")
+
 col1, col2, = st.columns(2)
 with col1:
     st.session_state.evals = st.number_input("Number of examples to evaluate for fitness calculation", value=4)
 with col2:
     st.session_state.generations = st.number_input("Number of generations to run for", value=5)
 
+models = ["llama3:8b", "mistral:7b", "gemma2:9b"]
 
 def dataframe_with_selections(mp_df, ts_df):
     mp_df_with_selections = mp_df.copy()
@@ -125,6 +126,7 @@ def dataframe_with_selections(mp_df, ts_df):
 
     return mp_selected_rows, ts_selected_rows
 
+selected_model = st.selectbox('Select a model', models)
 
 mp_selected_rows, ts_selected_rows = dataframe_with_selections(mp_df, ts_df)
 
@@ -134,6 +136,7 @@ st.session_state.calls = (st.session_state.size * st.session_state.evals + st.se
 second_button = st.button(f"run for {st.session_state.generations} generations",
                           disabled=(not (st.session_state.size > 0)))
 if second_button:
+    ollama_client = OllamaClient(model=selected_model)
     st.session_state.population = create_population(tp_set=ts_selected_rows['0'].tolist(),
                                                     mutator_set=mp_selected_rows['0'].tolist(),
                                                     problem_description=problem_description)
