@@ -1,4 +1,5 @@
 import logging
+import random
 import re
 from typing import List
 
@@ -101,8 +102,8 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
     print(Fore.CYAN + "Starting fitness evaluation...")
     start_time = time.time()
 
-    batch = gsm8k_examples[:num_evals]
-
+    # batch = gsm8k_examples[:num_evals]
+    batch = random.sample(gsm8k_examples, num_evals)
     elite_fitness = -1
     examples = []
     for unit in population.units:
@@ -149,7 +150,7 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
                 similarity_score = cosine_scores.item()
                 print(Fore.GREEN + f"Similarity score: {similarity_score}")
 
-                if similarity_score > 0.8:
+                if similarity_score > 0.1:
                     population.units[unit_index].fitness += (
                                 0.5 / num_evals)  # Assign partial credit for semantic similarity
 
