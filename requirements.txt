@@ -5,3 +5,9 @@ pydantic==2.5.2
 streamlit==1.36.0
 colorama==0.4.6
 requests==2.31.0
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.12.2
+sentence-transformers==3.0.1
+transformers==4.42.4
+torch==2.3.1
+huggingface-hub==0.23.5
