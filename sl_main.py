@@ -236,7 +236,6 @@ with st.sidebar:
                                          st.session_state.size * st.session_state.evals + st.session_state.size // 2) * st.session_state.generations
     st.metric("Calls", st.session_state.calls)
     st.metric("Approximate runtime", str(round(st.session_state.calls * 1.17, 2)) + "s")
-    st.metric("Approximate cost", "$" + str(round(st.session_state.calls * 0.00234, 2)))
     st.title("Current Information")
     st.metric("Current generation", str(st.session_state.current_generation))
 
