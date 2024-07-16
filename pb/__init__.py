@@ -35,7 +35,7 @@ def create_population(tp_set: List, mutator_set: List, problem_description: str)
             'T': t,
             'M': m,
             'P': '',
-            'Q': '',
+            'Q': [],
             'A': '',
             'fitness': 0,
             'history': []
@@ -110,6 +110,7 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
     examples = []
     for unit in population.units:
         unit.fitness = 0
+        unit.Q.append([example['question'] for example in batch])
         examples.append([unit.P + ' \n' + example['question'] for example in batch])
 
     results = []

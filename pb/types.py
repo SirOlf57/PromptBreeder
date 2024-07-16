@@ -22,7 +22,7 @@ class EvolutionUnit(pydantic.BaseModel):
     T: str
     M: str
     P: str
-    Q: str
+    Q: list
     A: str
     fitness: float
     history: List[str]
