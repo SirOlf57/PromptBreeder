@@ -231,6 +231,7 @@ with st.sidebar:
     st.metric("Population Size", st.session_state.size)
     st.metric("Fitness evals", st.session_state.evals)
     st.metric("Generations", st.session_state.generations)
+    st.metric("Model", selected_model)
     st.session_state.calls = (
                                          st.session_state.size * st.session_state.evals + st.session_state.size // 2) * st.session_state.generations
     st.metric("Calls", st.session_state.calls)
