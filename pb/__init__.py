@@ -1,18 +1,21 @@
-import concurrent.futures
-import re
 import logging
+import re
 from typing import List
 
+from colorama import Fore
+from sentence_transformers import SentenceTransformer, util
 from rich import print
 import time
 
-from pb.mutation_operators import mutate, llm
+from ollama_client import OllamaClient
+from pb.mutation_operators import mutate
 from pb import gsm
 from pb.types import EvolutionUnit, Population
 
 logger = logging.getLogger(__name__)
 
 gsm8k_examples = gsm.read_jsonl('pb/data/gsm.jsonl')
+model = SentenceTransformer('bert-base-nli-mean-tokens')
 
 
 def create_population(tp_set: List, mutator_set: List, problem_description: str) -> Population:
@@ -39,7 +42,7 @@ def create_population(tp_set: List, mutator_set: List, problem_description: str)
     return Population(**data)
 
 
-def init_run(population: Population, num_evals: int):
+def init_run(population: Population, num_evals: int, client: OllamaClient):
     """ The first run of the population that consumes the prompt_description and 
     creates the first prompt_tasks.
     
@@ -57,7 +60,7 @@ def init_run(population: Population, num_evals: int):
         prompts.append(template)
 
     for p in prompts:
-        result = llm(p)
+        result = client.prompt(p)
         results.append(result)
 
     end_time = time.time()
@@ -68,70 +71,94 @@ def init_run(population: Population, num_evals: int):
     for i, item in enumerate(results):
         population.units[i].P = item
 
-    _evaluate_fitness(population, num_evals)
+    _evaluate_fitness(population, num_evals, client)
 
     return population
 
 
-def run_for_n(n: int, population: Population, num_evals: int):
+def run_for_n(n: int, population: Population, num_evals: int, client: OllamaClient):
     """ Runs the genetic algorithm for n generations.
     """
     p = population
     for i in range(n):
         print(f"================== Population {i} ================== ")
-        mutate(p)
+        mutate(p, client)
         print("done mutation")
-        _evaluate_fitness(p, num_evals)
+        _evaluate_fitness(p, num_evals, client)
         print("done evaluation")
 
     return p
 
 
-def _evaluate_fitness(population: Population, num_evals: int) -> Population:
-    """ Evaluates each prompt P on a batch of Q&A samples, and populates the fitness values.
-    """
-    # need to query each prompt, and extract the answer. hardcoded 4 examples for now.
+def extract_numeric_answer(text):
+    """Extract the numeric answer from a given text."""
+    numbers = re.findall(r'\d+', text)
+    return numbers[-1] if numbers else None
 
-    logger.info(f"Starting fitness evaluation...")
+
+def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClient) -> Population:
+    """Evaluates each prompt P on a batch of Q&A samples, and populates the fitness values."""
+    print(Fore.CYAN + "Starting fitness evaluation...")
     start_time = time.time()
 
-    # batch = random.sample(gsm8k_examples, num_evals)
-    # instead of random, its better for reproducibility 
     batch = gsm8k_examples[:num_evals]
 
     elite_fitness = -1
     examples = []
     for unit in population.units:
-        # set the fitness to zero from past run.
         unit.fitness = 0
-        examples.append([unit.P + '\n' + example['question'] for example in batch])
+        examples.append([unit.P + ' \n' + example['question'] for example in batch])
 
     results = []
     for example_batch in examples:
-        try:
-            data = [llm(example, temperature=0) for example in example_batch]
-            results.append(data)
-        except Exception as exc:
-            print(f"Exception: {exc}")
+        batch_results = []
+        for example in example_batch:
+            try:
+                result = client.prompt(example, temperature=0)
+                batch_results.append(result)
+            except Exception as exc:
+                print(Fore.RED + f"Exception: {exc}")
+                batch_results.append(None)
+        results.append(batch_results)
 
-    # https://arxiv.org/pdf/2309.16797.pdf#page=5, P is a task-prompt to condition
-    # the LLM before further input Q.
     for unit_index, fitness_results in enumerate(results):
+        if fitness_results is None:
+            continue
         for i, x in enumerate(fitness_results):
-            valid = re.search(gsm.gsm_extract_answer(batch[i]['answer']), str(x))
-            if valid:
-                # 0.25 = 1 / 4 examples
+            if x is None:
+                continue
+
+            print(Fore.MAGENTA + f"Generated result: {x}")
+            print(Fore.YELLOW + f"Expected answer: {batch[i]['answer']}")
+
+            answer = batch[i]['answer']
+            extracted_answer = gsm.gsm_extract_answer(answer)
+            generated_answer = extract_numeric_answer(str(x))
+
+            print(Fore.CYAN + f"Extracted expected answer: {extracted_answer}")
+            print(Fore.CYAN + f"Extracted generated answer: {generated_answer}")
+
+            if extracted_answer == generated_answer:
                 population.units[unit_index].fitness += (1 / num_evals)
+            else:
+                # Calculate BERT-based similarity as secondary validation
+                embeddings1 = model.encode(extracted_answer, convert_to_tensor=True)
+                embeddings2 = model.encode(str(x), convert_to_tensor=True)
+                cosine_scores = util.pytorch_cos_sim(embeddings1, embeddings2)
+
+                similarity_score = cosine_scores.item()
+                print(Fore.GREEN + f"Similarity score: {similarity_score}")
+
+                if similarity_score > 0.8:
+                    population.units[unit_index].fitness += (
+                                0.5 / num_evals)  # Assign partial credit for semantic similarity
 
             if population.units[unit_index].fitness > elite_fitness:
-                # Copy the unit to preserve it against future mutations
-                unit = population.units[unit_index]
-                current_elite = unit.model_copy()
-                elite_fitness = unit.fitness
+                current_elite = population.units[unit_index].model_copy()
+                elite_fitness = population.units[unit_index].fitness
 
-    # append best unit of generation to the elites list.
     population.elites.append(current_elite)
     end_time = time.time()
-    logger.info(f"Done fitness evaluation. {end_time - start_time}s")
+    print(Fore.CYAN + f"Done fitness evaluation. {end_time - start_time}s")
 
     return population
