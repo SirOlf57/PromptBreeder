@@ -126,7 +126,7 @@ def dataframe_with_selections(mp_df, ts_df):
 
     return mp_selected_rows, ts_selected_rows
 
-selected_model = st.selectbox('Select a model', models)
+selected_model = st.selectbox('Select a model (make sure it is downloaded and running)', models)
 
 mp_selected_rows, ts_selected_rows = dataframe_with_selections(mp_df, ts_df)
 
