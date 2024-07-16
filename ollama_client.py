@@ -19,7 +19,8 @@ class OllamaClient:
             "prompt": prompt,
             "temperature": temperature,
             "max_tokens": 1024,
-            "stream": False
+            "stream": False,
+            "context": []
         }
         response = {}
         try:
