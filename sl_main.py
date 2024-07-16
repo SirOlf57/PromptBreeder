@@ -126,7 +126,7 @@ def dataframe_with_selections(mp_df, ts_df):
 
     return mp_selected_rows, ts_selected_rows
 
-selected_model = st.selectbox('Select a model', models)
+selected_model = st.selectbox('Select a model (make sure it is downloaded and running)', models)
 
 mp_selected_rows, ts_selected_rows = dataframe_with_selections(mp_df, ts_df)
 
@@ -231,11 +231,11 @@ with st.sidebar:
     st.metric("Population Size", st.session_state.size)
     st.metric("Fitness evals", st.session_state.evals)
     st.metric("Generations", st.session_state.generations)
+    st.metric("Model", selected_model)
     st.session_state.calls = (
                                          st.session_state.size * st.session_state.evals + st.session_state.size // 2) * st.session_state.generations
     st.metric("Calls", st.session_state.calls)
     st.metric("Approximate runtime", str(round(st.session_state.calls * 1.17, 2)) + "s")
-    st.metric("Approximate cost", "$" + str(round(st.session_state.calls * 0.00234, 2)))
     st.title("Current Information")
     st.metric("Current generation", str(st.session_state.current_generation))
 

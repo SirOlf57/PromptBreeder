@@ -10,7 +10,9 @@ class EvolutionUnit(pydantic.BaseModel):
         'M': the mutation_prompt.
 
         'P': the task_prompt.
-        
+
+        'P': the answer from the llm.
+
         'fitness': the estimated performance of the unit.
         
         'history': historical prompts for analysis. 
@@ -18,6 +20,7 @@ class EvolutionUnit(pydantic.BaseModel):
     T: str
     M: str
     P: str
+    A: str
     fitness: float
     history: List[str]
 
