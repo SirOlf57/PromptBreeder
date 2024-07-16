@@ -20,7 +20,7 @@ parser.add_argument('-ts', '--num_thinking_styles', default=4, type=int)
 parser.add_argument('-e', '--num_evals', default=10, type=int)
 parser.add_argument('-n', '--simulations', default=10, type=int)
 parser.add_argument('-p', '--problem', default="Solve the math word problem, giving your answer as an arabic numeral.")       
-parser.add_argument('-´m', '--model', default="llama3:8b")
+parser.add_argument('-m', '--model', default="llama3:8b")
 
 args = vars(parser.parse_args())
 
