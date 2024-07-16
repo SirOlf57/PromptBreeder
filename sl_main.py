@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+from ollama_client import OllamaClient
 from pb import create_population, init_run, run_for_n
 from pb.mutation_prompts import mutation_prompts
 from pb.thinking_styles import thinking_styles
@@ -85,7 +86,7 @@ where you can use those extra 3 mutations, but I can't promise they will be exac
 problem_description = st.text_input("problem description",
                                     value="Solve the math word problem, giving your answer as an arabic numeral.",
                                     key="pd")
-
+ollama_client = OllamaClient(model="llama3:8b")
 col1, col2, = st.columns(2)
 with col1:
     st.session_state.evals = st.number_input("Number of examples to evaluate for fitness calculation", value=4)
@@ -140,7 +141,7 @@ if second_button:
     st.session_state.calls = st.session_state.evals * st.session_state.generations
     st.session_state.start_time = time.time()
     st.session_state.running = True
-    st.session_state.population = init_run(st.session_state.population, st.session_state.evals)
+    st.session_state.population = init_run(st.session_state.population, st.session_state.evals, ollama_client)
 
     fitness_avg = 0
     elite_fitness = 0
@@ -178,7 +179,7 @@ if second_button:
         current_pop_header = st.empty()
         population_table = st.empty()
         while st.session_state.current_generation < st.session_state.generations:
-            st.session_state.population = run_for_n(1, st.session_state.population, st.session_state.evals)
+            st.session_state.population = run_for_n(1, st.session_state.population, st.session_state.evals, ollama_client)
             st.session_state.current_generation += 1
             fitness_avg = 0
 

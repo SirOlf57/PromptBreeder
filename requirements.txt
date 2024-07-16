@@ -4,3 +4,4 @@ cohere==4.37
 pydantic==2.5.2
 streamlit==1.36.0
 colorama==0.4.6
+requests==2.31.0

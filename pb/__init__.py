@@ -6,7 +6,8 @@ from typing import List
 from rich import print
 import time
 
-from pb.mutation_operators import mutate, llm
+from ollama_client import OllamaClient
+from pb.mutation_operators import mutate
 from pb import gsm
 from pb.types import EvolutionUnit, Population
 
@@ -39,7 +40,7 @@ def create_population(tp_set: List, mutator_set: List, problem_description: str)
     return Population(**data)
 
 
-def init_run(population: Population, num_evals: int):
+def init_run(population: Population, num_evals: int, client: OllamaClient):
     """ The first run of the population that consumes the prompt_description and 
     creates the first prompt_tasks.
     
@@ -57,7 +58,7 @@ def init_run(population: Population, num_evals: int):
         prompts.append(template)
 
     for p in prompts:
-        result = llm(p)
+        result = client.prompt(p)
         results.append(result)
 
     end_time = time.time()
@@ -68,26 +69,26 @@ def init_run(population: Population, num_evals: int):
     for i, item in enumerate(results):
         population.units[i].P = item
 
-    _evaluate_fitness(population, num_evals)
+    _evaluate_fitness(population, num_evals, client)
 
     return population
 
 
-def run_for_n(n: int, population: Population, num_evals: int):
+def run_for_n(n: int, population: Population, num_evals: int, client: OllamaClient):
     """ Runs the genetic algorithm for n generations.
     """
     p = population
     for i in range(n):
         print(f"================== Population {i} ================== ")
-        mutate(p)
+        mutate(p, client)
         print("done mutation")
-        _evaluate_fitness(p, num_evals)
+        _evaluate_fitness(p, num_evals, client)
         print("done evaluation")
 
     return p
 
 
-def _evaluate_fitness(population: Population, num_evals: int) -> Population:
+def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClient) -> Population:
     """ Evaluates each prompt P on a batch of Q&A samples, and populates the fitness values.
     """
     # need to query each prompt, and extract the answer. hardcoded 4 examples for now.
@@ -109,7 +110,7 @@ def _evaluate_fitness(population: Population, num_evals: int) -> Population:
     results = []
     for example_batch in examples:
         try:
-            data = [llm(example, temperature=0) for example in example_batch]
+            data = [client.prompt(example, temperature=0) for example in example_batch]
             results.append(data)
         except Exception as exc:
             print(f"Exception: {exc}")

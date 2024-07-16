@@ -1,9 +1,7 @@
 import random
 import re
-import os
-import requests
-import json
-from colorama import Fore
+
+from ollama_client import OllamaClient
 from pb.types import Population, EvolutionUnit
 from typing import List
 from pb.thinking_styles import thinking_styles
@@ -17,46 +15,15 @@ load_dotenv()
 gsm8k_examples = gsm.read_jsonl('pb/data/gsm.jsonl')
 
 
-# need below for estimation_distribution_mutation, not currently using.
-# model = SentenceTransformer('multi-qa-distilbert-cos-v1')
-# print(model) 
-
-def llm(prompt, temperature=0.0):
-    print(Fore.GREEN, prompt)
-
-    url = "http://localhost:11434/api/generate"
-    headers = {"Content-Type": "application/json"}
-
-    data = {
-        "model": 'llama3:8b',
-        "prompt": prompt,
-        "temperature": temperature,
-        "max_tokens": 1024,
-        "stream": False
-    }
-
-    try:
-        # response = requests.post(url, headers=headers, json=data)
-        response = requests.post(url=url, headers=headers, data=json.dumps(data))
-        print(Fore.WHITE, json.loads(response.text)["response"])
-
-        return json.loads(response.text)["response"]
-
-    except Exception as e:
-        print("Error: ", response.status_code, response.text)
-
-    return response
-
-
 # Direct Mutation mutators
-def zero_order_prompt_gen(unit: EvolutionUnit, problem_description: str, **kwargs) -> EvolutionUnit:
+def zero_order_prompt_gen(unit: EvolutionUnit, problem_description: str, client: OllamaClient, **kwargs) -> EvolutionUnit:
     """Generates a new task-prompt P by concatenating the problem description D with the prompt 
     'a list of 100 hints:'. New task-prompt P is the first generated hint.
     
     Returns: 
         EvolutionUnit: the evolution unit to replace the loser unit.
     """
-    result = llm(problem_description + " An ordered list of 100 hints: ")
+    result = client.prompt(problem_description + " An ordered list of 100 hints: ")
     # search for the pattern "anything after 1. and before 2."
     pattern = r"1\.(.*?)2\."
     match = re.search(pattern, result[0], re.DOTALL)
@@ -69,19 +36,19 @@ def zero_order_prompt_gen(unit: EvolutionUnit, problem_description: str, **kwarg
     return unit
 
 
-def first_order_prompt_gen(unit: EvolutionUnit, **kwargs) -> EvolutionUnit:
+def first_order_prompt_gen(unit: EvolutionUnit, client: OllamaClient, **kwargs) -> EvolutionUnit:
     """Concatenate the mutation prompt M to the parent task-prompt P and pass it to the LLM to produce P'
     
     Returns: 
         EvolutionUnit: the evolution unit to replace the loser unit.
     """
-    unit.P = llm(unit.M + " " + unit.P)
+    unit.P = client.prompt(unit.M + " " + unit.P)
     return unit
 
 
 # Estimation of Distribution Mutation - there is a variation of this called EDA rank
 # and index mutation. I didn't implement it.
-def estimation_distribution_mutation(unit: EvolutionUnit, population_units: List[EvolutionUnit],
+def estimation_distribution_mutation(unit: EvolutionUnit, population_units: List[EvolutionUnit], client: OllamaClient,
                                      **kwargs) -> EvolutionUnit:
     """ Provide a filtered and numbered list of the current population of task-prompts to the LLM and ask it to continue this list with new task-prompts.
     The List is filtered via ensuring that no two task-prompts have a score of >0.95 via BERT embedding cosine similarities.
@@ -96,7 +63,7 @@ def estimation_distribution_mutation(unit: EvolutionUnit, population_units: List
     pass
 
 
-def lineage_based_mutation(unit: EvolutionUnit, elites: List[EvolutionUnit], **kwargs) -> EvolutionUnit:
+def lineage_based_mutation(unit: EvolutionUnit, elites: List[EvolutionUnit], client: OllamaClient, **kwargs) -> EvolutionUnit:
     """Using the stored history of best units, provide the LLM this list in chronological order to produce a novel prompt as continuation.
     
     Returns: 
@@ -105,24 +72,24 @@ def lineage_based_mutation(unit: EvolutionUnit, elites: List[EvolutionUnit], **k
     HEADING = "GENOTYPES FOUND IN ASCENDING ORDER OF QUALITY \n "
     # made a choice not to format it with newlines, could change later.
     ITEMS = "\n".join(["{}. {}".format(i + 1, x.P) for i, x in enumerate(elites)])
-    unit.P = llm(HEADING + ITEMS)
+    unit.P = client.prompt(HEADING + ITEMS)
 
     return unit
 
 
 # Hypermutation
-def zero_order_hypermutation(unit: EvolutionUnit, problem_description: str, **kwargs) -> EvolutionUnit:
+def zero_order_hypermutation(unit: EvolutionUnit, problem_description: str, client: OllamaClient, **kwargs) -> EvolutionUnit:
     """ Concatenate the original problem_description to a randomly sampled thinking-style and feed it to the LLM to generate a new mutation-prompt.
     
     Returns: 
         EvolutionUnit: the evolution unit to replace the loser unit.
     """
     RANDOM_THINKING_STYLE = random.sample(thinking_styles, 1)[0]
-    unit.M = llm(problem_description + " " + RANDOM_THINKING_STYLE)
+    unit.M = client.prompt(problem_description + " " + RANDOM_THINKING_STYLE)
     return unit
 
 
-def first_order_hypermutation(unit: EvolutionUnit, **kwargs) -> EvolutionUnit:
+def first_order_hypermutation(unit: EvolutionUnit, client: OllamaClient, **kwargs) -> EvolutionUnit:
     """ Concatenate the hyper-mutation prompt "Please summarize and improve the following instruction:"
     to a mutation-prompt to that the LLM generates a new mutation-prompt. This new mutation-prompt is then 
     instantly applied to the task-prompt of that unit.
@@ -131,13 +98,13 @@ def first_order_hypermutation(unit: EvolutionUnit, **kwargs) -> EvolutionUnit:
         EvolutionUnit: the evolution unit to replace the loser unit.
     """
     HYPER_MUTATION_PROMPT = "Please summarize and improve the following instruction: "
-    unit.M = llm(HYPER_MUTATION_PROMPT + unit.M)
-    unit.P = llm(unit.M + " " + unit.P)
+    unit.M = client.prompt(HYPER_MUTATION_PROMPT + unit.M)
+    unit.P = client.prompt(unit.M + " " + unit.P)
     return unit
 
 
 # Lamarckian Mutation
-def working_out_task_prompt(unit: EvolutionUnit, **kwargs) -> EvolutionUnit:
+def working_out_task_prompt(unit: EvolutionUnit, client: OllamaClient, **kwargs) -> EvolutionUnit:
     """ A 'lamarckian' mutation operator similar to instruction induction in APE.
 
     As far as I can understand, give it both the Q and A from the gsm8k dataset, 
@@ -150,13 +117,13 @@ def working_out_task_prompt(unit: EvolutionUnit, **kwargs) -> EvolutionUnit:
     """
     RANDOM_WORKING_OUT = random.sample(gsm8k_examples, 1)[0]
 
-    unit.P = llm("I gave a friend an instruction and some advice. Here are the correct examples of his workings out " +
+    unit.P = client.prompt("I gave a friend an instruction and some advice. Here are the correct examples of his workings out " +
                  RANDOM_WORKING_OUT['question'] + " " + RANDOM_WORKING_OUT['answer'] + " The instruction was: ")
     return unit
 
 
 # Prompt crossover and context shuffling. These happen AFTER mutation operators. 
-def prompt_crossover(**kwargs):
+def prompt_crossover(client: OllamaClient, **kwargs):
     """
     After a mutation operator is applied, 
 
@@ -165,7 +132,7 @@ def prompt_crossover(**kwargs):
     """
 
 
-def context_shuffling(**kwargs):
+def context_shuffling(client: OllamaClient, **kwargs):
     """
     
     Returns: 
@@ -190,7 +157,7 @@ POST_MUTATORS = [
 ]
 
 
-def mutate(population: Population) -> Population:
+def mutate(population: Population, client: OllamaClient) -> Population:
     """Select and apply a random mutator"""
     # steps
     # 1. parse through the population, grouping each evo unit by 2
@@ -232,6 +199,7 @@ def mutate(population: Population) -> Population:
             'model': 'Llama3',
             'elites': population.elites,
             'problem_description': population.problem_description,
+            'client': client
         }
 
         # uniformly pick and call a random mutation operator on the losing unit
