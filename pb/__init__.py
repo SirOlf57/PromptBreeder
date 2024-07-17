@@ -94,11 +94,15 @@ def run_for_n(n: int, population: Population, num_evals: int, client: OllamaClie
     return p
 
 
-def extract_numeric_answer(text):
+def extract_numeric_answers(text):
     """Extract the numeric answer from a given text."""
     numbers = re.findall(r'\d+', text)
-    return numbers[-1] if numbers else None
+    return numbers if numbers else None
 
+def is_correct_answer(llm_response, correct_answer):
+    """Check if the correct answer is in the LLM's response."""
+    llm_answers = extract_numeric_answers(llm_response)
+    return str(correct_answer) in llm_answers
 
 def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClient) -> Population:
     """Evaluates each prompt P on a batch of Q&A samples, and populates the fitness values."""
@@ -138,13 +142,10 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
 
             answer = batch[index]['answer']
             extracted_answer = gsm.gsm_extract_answer(answer)
-            generated_answer = gsm.gsm_extract_answer(str(llm_answer))
 
-            print(Fore.CYAN + f"Extracted expected answer: {extracted_answer}")
-            print(Fore.CYAN + f"Extracted generated answer: {generated_answer}")
             population.units[unit_index].A = str(llm_answer)
             population.units[unit_index].EA = str(answer)
-            if extracted_answer == generated_answer:
+            if is_correct_answer(llm_answer, extracted_answer):
                 population.units[unit_index].fitness += (1 / num_evals)
 
             # Calculate BERT-based similarity as secondary validation
