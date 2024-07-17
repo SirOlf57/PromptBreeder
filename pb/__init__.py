@@ -37,6 +37,7 @@ def create_population(tp_set: List, mutator_set: List, problem_description: str)
             'P': '',
             'Q': [],
             'A': '',
+            'EA': '',
             'fitness': 0,
             'history': []
         }) for t in tp_set for m in mutator_set]
@@ -137,11 +138,12 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
 
             answer = batch[index]['answer']
             extracted_answer = gsm.gsm_extract_answer(answer)
-            generated_answer = extract_numeric_answer(str(llm_answer))
+            generated_answer = gsm.gsm_extract_answer(str(llm_answer))
 
             print(Fore.CYAN + f"Extracted expected answer: {extracted_answer}")
             print(Fore.CYAN + f"Extracted generated answer: {generated_answer}")
             population.units[unit_index].A = str(llm_answer)
+            population.units[unit_index].EA = str(answer)
             if extracted_answer == generated_answer:
                 population.units[unit_index].fitness += (1 / num_evals)
 

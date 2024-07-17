@@ -15,6 +15,8 @@ class EvolutionUnit(pydantic.BaseModel):
 
         'A': the answer from the llm.
 
+        'EA': the expected answer from the dataset.
+
         'fitness': the estimated performance of the unit.
         
         'history': historical prompts for analysis. 
@@ -24,6 +26,7 @@ class EvolutionUnit(pydantic.BaseModel):
     P: str
     Q: list
     A: str
+    EA: str
     fitness: float
     history: List[str]
 
