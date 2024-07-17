@@ -130,6 +130,8 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
                 batch_results.append(None)
         results.append(batch_results)
 
+    current_elite = []
+
     for unit_index, fitness_results in enumerate(results):
         if fitness_results is None:
             continue
@@ -156,9 +158,9 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
                 similarity_score = cosine_scores.item()
                 print(Fore.GREEN + f"Similarity score: {similarity_score}")
 
-                if similarity_score > 0.1:
+                if similarity_score > 0.2:
                     population.units[unit_index].fitness += (
-                                0.5 / num_evals)  # Assign partial credit for semantic similarity
+                                0.25 / num_evals)  # Assign partial credit for semantic similarity
 
                 if population.units[unit_index].fitness > elite_fitness:
                     current_elite = population.units[unit_index].model_copy()
