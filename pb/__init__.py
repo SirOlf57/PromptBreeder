@@ -148,21 +148,23 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
             if is_correct_answer(llm_answer, extracted_answer):
                 population.units[unit_index].fitness += (1 / num_evals)
 
-            # Calculate BERT-based similarity as secondary validation
-            embeddings1 = model.encode(extracted_answer, convert_to_tensor=True)
-            embeddings2 = model.encode(str(llm_answer), convert_to_tensor=True)
-            cosine_scores = util.pytorch_cos_sim(embeddings1, embeddings2)
+                # Calculate BERT-based similarity as secondary validation
+                embeddings1 = model.encode(extracted_answer, convert_to_tensor=True)
+                embeddings2 = model.encode(str(llm_answer), convert_to_tensor=True)
+                cosine_scores = util.pytorch_cos_sim(embeddings1, embeddings2)
 
-            similarity_score = cosine_scores.item()
-            print(Fore.GREEN + f"Similarity score: {similarity_score}")
+                similarity_score = cosine_scores.item()
+                print(Fore.GREEN + f"Similarity score: {similarity_score}")
 
-            if similarity_score > 0.1:
-                population.units[unit_index].fitness += (
-                            0.5 / num_evals)  # Assign partial credit for semantic similarity
+                if similarity_score > 0.1:
+                    population.units[unit_index].fitness += (
+                                0.5 / num_evals)  # Assign partial credit for semantic similarity
 
-            if population.units[unit_index].fitness > elite_fitness:
-                current_elite = population.units[unit_index].model_copy()
-                elite_fitness = population.units[unit_index].fitness
+                if population.units[unit_index].fitness > elite_fitness:
+                    current_elite = population.units[unit_index].model_copy()
+                    elite_fitness = population.units[unit_index].fitness
+            else:
+                population.units[unit_index].fitness += 0
 
     population.elites.append(current_elite)
     end_time = time.time()
