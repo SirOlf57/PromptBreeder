@@ -25,8 +25,8 @@ class EvolutionUnit(pydantic.BaseModel):
     M: str
     P: str
     Q: list
-    A: str
-    EA: str
+    A: list
+    EA: list
     fitness: float
     history: List[str]
 

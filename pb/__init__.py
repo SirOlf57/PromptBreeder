@@ -36,8 +36,8 @@ def create_population(tp_set: List, mutator_set: List, problem_description: str)
             'M': m,
             'P': '',
             'Q': [],
-            'A': '',
-            'EA': '',
+            'A': [],
+            'EA': [],
             'fitness': 0,
             'history': []
         }) for t in tp_set for m in mutator_set]
@@ -95,14 +95,14 @@ def run_for_n(n: int, population: Population, num_evals: int, client: OllamaClie
 
 
 def extract_numeric_answers(text):
-    """Extract the numeric answer from a given text."""
+    """Extract the last numeric answer from a given text."""
     numbers = re.findall(r'\d+', text)
-    return numbers if numbers else None
+    return numbers[-1] if numbers else None
 
 def is_correct_answer(llm_response, correct_answer):
     """Check if the correct answer is in the LLM's response."""
-    llm_answers = extract_numeric_answers(llm_response)
-    return str(correct_answer) in llm_answers
+    llm_numeric_answer = extract_numeric_answers(llm_response)
+    return str(correct_answer) == llm_numeric_answer
 
 def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClient) -> Population:
     """Evaluates each prompt P on a batch of Q&A samples, and populates the fitness values."""
@@ -145,8 +145,8 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
             answer = batch[index]['answer']
             extracted_answer = gsm.gsm_extract_answer(answer)
 
-            population.units[unit_index].A = str(llm_answer)
-            population.units[unit_index].EA = str(answer)
+            population.units[unit_index].A.append(str(llm_answer))
+            population.units[unit_index].EA.append(str(answer))
             if is_correct_answer(llm_answer, extracted_answer):
                 population.units[unit_index].fitness += (1 / num_evals)
 
@@ -167,6 +167,8 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
                     elite_fitness = population.units[unit_index].fitness
             else:
                 population.units[unit_index].fitness += 0
+                current_elite = population.units[unit_index].model_copy()
+                elite_fitness = population.units[unit_index].fitness
 
     population.elites.append(current_elite)
     end_time = time.time()
