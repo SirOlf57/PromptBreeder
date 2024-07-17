@@ -128,34 +128,34 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
     for unit_index, fitness_results in enumerate(results):
         if fitness_results is None:
             continue
-        for i, x in enumerate(fitness_results):
-            if x is None:
+        for index, llm_answer in enumerate(fitness_results):
+            if llm_answer is None:
                 continue
 
-            print(Fore.MAGENTA + f"Generated result: {x}")
-            print(Fore.YELLOW + f"Expected answer: {batch[i]['answer']}")
+            print(Fore.MAGENTA + f"Generated result: {llm_answer}")
+            print(Fore.YELLOW + f"Expected answer: {batch[index]['answer']}")
 
-            answer = batch[i]['answer']
+            answer = batch[index]['answer']
             extracted_answer = gsm.gsm_extract_answer(answer)
-            generated_answer = extract_numeric_answer(str(x))
+            generated_answer = extract_numeric_answer(str(llm_answer))
 
             print(Fore.CYAN + f"Extracted expected answer: {extracted_answer}")
             print(Fore.CYAN + f"Extracted generated answer: {generated_answer}")
-            population.units[unit_index].A = str(x)
+            population.units[unit_index].A = str(llm_answer)
             if extracted_answer == generated_answer:
                 population.units[unit_index].fitness += (1 / num_evals)
-            else:
-                # Calculate BERT-based similarity as secondary validation
-                embeddings1 = model.encode(extracted_answer, convert_to_tensor=True)
-                embeddings2 = model.encode(str(x), convert_to_tensor=True)
-                cosine_scores = util.pytorch_cos_sim(embeddings1, embeddings2)
 
-                similarity_score = cosine_scores.item()
-                print(Fore.GREEN + f"Similarity score: {similarity_score}")
+            # Calculate BERT-based similarity as secondary validation
+            embeddings1 = model.encode(extracted_answer, convert_to_tensor=True)
+            embeddings2 = model.encode(str(llm_answer), convert_to_tensor=True)
+            cosine_scores = util.pytorch_cos_sim(embeddings1, embeddings2)
 
-                if similarity_score > 0.1:
-                    population.units[unit_index].fitness += (
-                                0.5 / num_evals)  # Assign partial credit for semantic similarity
+            similarity_score = cosine_scores.item()
+            print(Fore.GREEN + f"Similarity score: {similarity_score}")
+
+            if similarity_score > 0.1:
+                population.units[unit_index].fitness += (
+                            0.5 / num_evals)  # Assign partial credit for semantic similarity
 
             if population.units[unit_index].fitness > elite_fitness:
                 current_elite = population.units[unit_index].model_copy()
