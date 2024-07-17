@@ -135,6 +135,9 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
     for unit_index, fitness_results in enumerate(results):
         if fitness_results is None:
             continue
+        # Reset population for correct table output
+        population.units[unit_index].A = []
+        population.units[unit_index].EA = []
         for index, llm_answer in enumerate(fitness_results):
             if llm_answer is None:
                 continue

@@ -221,7 +221,7 @@ if second_button:
             df = pd.DataFrame([s.model_dump() for s in st.session_state.population.units])
             for column in df.columns:
                 if df[column].apply(lambda x: isinstance(x, list)).any():
-                    df[column] = df[column].apply(lambda x: ';\n'.join(map(str, x)) if isinstance(x, list) else x)
+                    df[column] = df[column].apply(lambda x: '##############\n'.join(map(str, x)) if isinstance(x, list) else x)
             population_table = st.dataframe(df)
 
     st.session_state.running = False
