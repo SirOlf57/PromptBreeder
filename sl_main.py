@@ -80,8 +80,6 @@ N is determined below, in the "number of examples to evaluate for fitness calcul
 Each generation is run through a standard binary tournament genetic algorithm. Basically, randomly sample 2 units from the population, and 
 compare fitness levels. Whoever has the lower fitness loses, and has a random mutation applied to them. 
 
-There are 12 mutations outlined by the promptbreeder paper. Only 9 are implemented here, as a few are ambiguous. Will add a "experimental mode" 
-where you can use those extra 3 mutations, but I can't promise they will be exactly the same as DeepMind's implementations.
 """)
 problem_description = st.text_input("problem description",
                                     value="Solve the math word problem, giving your answer as an arabic numeral.",
@@ -221,7 +219,7 @@ if second_button:
             df = pd.DataFrame([s.model_dump() for s in st.session_state.population.units])
             for column in df.columns:
                 if df[column].apply(lambda x: isinstance(x, list)).any():
-                    df[column] = df[column].apply(lambda x: '##############\n'.join(map(str, x)) if isinstance(x, list) else x)
+                    df[column] = df[column].apply(lambda x: ' ##############\n\n'.join(map(str, x)) if isinstance(x, list) else x)
             population_table = st.dataframe(df)
 
     st.session_state.running = False
