@@ -35,8 +35,9 @@ def create_population(tp_set: List, mutator_set: List, problem_description: str)
             'T': t,
             'M': m,
             'P': '',
-            'Q': '',
-            'A': '',
+            'Q': [],
+            'A': [],
+            'EA': [],
             'fitness': 0,
             'history': []
         }) for t in tp_set for m in mutator_set]
@@ -93,11 +94,15 @@ def run_for_n(n: int, population: Population, num_evals: int, client: OllamaClie
     return p
 
 
-def extract_numeric_answer(text):
-    """Extract the numeric answer from a given text."""
+def extract_numeric_answers(text):
+    """Extract the last numeric answer from a given text."""
     numbers = re.findall(r'\d+', text)
     return numbers[-1] if numbers else None
 
+def is_correct_answer(llm_response, correct_answer):
+    """Check if the correct answer is in the LLM's response."""
+    llm_numeric_answer = extract_numeric_answers(llm_response)
+    return str(correct_answer) == llm_numeric_answer
 
 def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClient) -> Population:
     """Evaluates each prompt P on a batch of Q&A samples, and populates the fitness values."""
@@ -110,6 +115,7 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
     examples = []
     for unit in population.units:
         unit.fitness = 0
+        unit.Q.append([example['question'] for example in batch])
         examples.append([unit.P + ' \n' + example['question'] for example in batch])
 
     results = []
@@ -124,39 +130,46 @@ def _evaluate_fitness(population: Population, num_evals: int, client: OllamaClie
                 batch_results.append(None)
         results.append(batch_results)
 
+    current_elite = []
+
     for unit_index, fitness_results in enumerate(results):
         if fitness_results is None:
             continue
-        for i, x in enumerate(fitness_results):
-            if x is None:
+        # Reset population for correct table output
+        population.units[unit_index].A = []
+        population.units[unit_index].EA = []
+        for index, llm_answer in enumerate(fitness_results):
+            if llm_answer is None:
                 continue
 
-            print(Fore.MAGENTA + f"Generated result: {x}")
-            print(Fore.YELLOW + f"Expected answer: {batch[i]['answer']}")
+            print(Fore.MAGENTA + f"Generated result: {llm_answer}")
+            print(Fore.YELLOW + f"Expected answer: {batch[index]['answer']}")
 
-            answer = batch[i]['answer']
+            answer = batch[index]['answer']
             extracted_answer = gsm.gsm_extract_answer(answer)
-            generated_answer = extract_numeric_answer(str(x))
 
-            print(Fore.CYAN + f"Extracted expected answer: {extracted_answer}")
-            print(Fore.CYAN + f"Extracted generated answer: {generated_answer}")
-            population.units[unit_index].A = str(x)
-            if extracted_answer == generated_answer:
+            population.units[unit_index].A.append(str(llm_answer))
+            population.units[unit_index].EA.append(str(answer))
+            if is_correct_answer(llm_answer, extracted_answer):
                 population.units[unit_index].fitness += (1 / num_evals)
-            else:
+
                 # Calculate BERT-based similarity as secondary validation
                 embeddings1 = model.encode(extracted_answer, convert_to_tensor=True)
-                embeddings2 = model.encode(str(x), convert_to_tensor=True)
+                embeddings2 = model.encode(str(llm_answer), convert_to_tensor=True)
                 cosine_scores = util.pytorch_cos_sim(embeddings1, embeddings2)
 
                 similarity_score = cosine_scores.item()
                 print(Fore.GREEN + f"Similarity score: {similarity_score}")
 
-                if similarity_score > 0.1:
+                if similarity_score > 0.2:
                     population.units[unit_index].fitness += (
-                                0.5 / num_evals)  # Assign partial credit for semantic similarity
+                                0.25 / num_evals)  # Assign partial credit for semantic similarity
 
-            if population.units[unit_index].fitness > elite_fitness:
+                if population.units[unit_index].fitness > elite_fitness:
+                    current_elite = population.units[unit_index].model_copy()
+                    elite_fitness = population.units[unit_index].fitness
+            else:
+                population.units[unit_index].fitness += 0
                 current_elite = population.units[unit_index].model_copy()
                 elite_fitness = population.units[unit_index].fitness
 
