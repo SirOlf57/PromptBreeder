@@ -182,8 +182,6 @@ def mutate(population: Population, client: OllamaClient) -> Population:
         print("Second unit: \n")
         print(second_unit)
 
-        # determine which unit has the higher fitness. Since I am currently testing and want to preserve the # of calls I am making to the LLM, there 
-        # is a decent chance that I will hit equal fitness levels. in that case, first unit wins and second unit loses.
 
         # TODO: clean this up
         FIRST_WON = False
@@ -196,7 +194,7 @@ def mutate(population: Population, client: OllamaClient) -> Population:
 
         data = {
             'unit': mutation_input,
-            'model': 'Llama3',
+            'model': client.model,
             'elites': population.elites,
             'problem_description': population.problem_description,
             'client': client
