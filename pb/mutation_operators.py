@@ -98,7 +98,7 @@ def first_order_hypermutation(unit: EvolutionUnit, client: OllamaClient, **kwarg
         EvolutionUnit: the evolution unit to replace the loser unit.
     """
     HYPER_MUTATION_PROMPT = "Please summarize and improve the following instruction: "
-    unit.M = client.prompt(HYPER_MUTATION_PROMPT + unit.M)
+    unit.M = client.prompt(HYPER_MUTATION_PROMPT + "\"" + unit.M + "\"")
     unit.P = client.prompt(unit.M + " " + unit.P)
     return unit
 

@@ -1,12 +1,12 @@
 rich==13.6.0
-python-dotenv==1.0.0
+python-dotenv==1.0.1
 cohere==4.37
 pydantic==2.5.2
 streamlit==1.36.0
 colorama==0.4.6
 requests==2.31.0
 fuzzywuzzy==0.18.0
-python-Levenshtein==0.12.2
+python-Levenshtein==0.25.1
 sentence-transformers==3.0.1
 transformers==4.42.4
 torch==2.3.1
