@@ -25,7 +25,7 @@ parser.add_argument('-m', '--model', default="llama3:8b")
 args = vars(parser.parse_args())
 
 
-ollama_client = OllamaClient(model=args['model'])
+ollama_client = OllamaClient(host="http://localhost:11434", model=args['model'])
 total_evaluations = args['num_mutation_prompts']*args['num_thinking_styles']*args['num_evals']
 
 tp_set = mutation_prompts[:int(args['num_mutation_prompts'])]

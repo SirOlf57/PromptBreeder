@@ -5,13 +5,14 @@ from colorama import Fore
 
 
 class OllamaClient:
-    def __init__(self, model: str = "llama3:8b"):
+    def __init__(self, host: str = "http://localhost:11434", model: str = "llama3:8b"):
+        self.host = host
         self.model = model
 
     def prompt(self, prompt, temperature=0.0):
         print(Fore.GREEN, prompt)
 
-        url = "http://localhost:11434/api/generate"
+        url = f"{self.host}/api/generate"
         headers = {"Content-Type": "application/json"}
 
         data = {
